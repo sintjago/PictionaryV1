@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Pictionary</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 10px;
+      font-family: Arial, sans-serif;
+      background-color: #f9f9f9;
+    }
+
+    .game-wrapper {
+      width: 900px;
+      margin: 0 auto;
+    }
+
+    .controls-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .controls-row button,
+    .controls-row input {
+      font-size: 14px;
+      padding: 5px 8px;
+    }
+
+    .controls-row input[type="number"] {
+      width: 45px;
+      text-align: center;
+    }
+
+    #card-display {
+      font-weight: bold;
+      font-size: 18px;
+      min-width: 80px;
+      text-align: center;
+    }
+
+    #canvas-area {
+      display: flex;
+      gap: 20px;
+    }
+
+    canvas {
+      border: 1px solid black;
+      background-color: white;
+    }
+
+    #score-table {
+      border-collapse: collapse;
+      background-color: #eef;
+      font-size: 14px;
+      width: 200px;
+      margin-bottom: 10px;
+    }
+
+    #score-table th, #score-table td {
+      border: 1px solid #99c;
+      padding: 5px 8px;
+      text-align: center;
+    }
+
+    #score-table th {
+      background-color: #cce;
+    }
+
+    .csv-input-area {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      width: 185px;
+    }
+
+    .csv-input-area input[type="text"],
+    .csv-input-area input[type="color"],
+    .csv-input-area input[type="range"] {
+      width: 100%;
+      padding: 5px;
+      font-size: 14px;
+    }
+
+    .csv-input-area button {
+      width: 80px;
+    }
+
+    .color-label, .thickness-label {
+      font-size: 14px;
+      margin-top: 5px;
+    }
+  </style>
+</head>
+<body>
+  <div class="game-wrapper">
+    <!-- Línea 1: Título + palabra + temporizador -->
+    <div class="controls-row">
+      <strong id="title">Juego de dibujo Pictionary</strong>
+      <button class="speak-on-click" id="new-card-btn">Nueva palabra</button>
+      <span>Dibuja:</span>
+      <span id="card-display">_ _ _</span>
+      <button class="speak-on-click" id="discard-card-btn">Pasar</button>
+      <button class="speak-on-click" id="start-timer">Iniciar</button>
+      <input type="number" id="timer" value="60" min="1"> seg.
+      <button class="speak-on-click" id="reset-timer">Reiniciar</button>
+    </div>
+
+    <!-- Línea 2: Formas + borrar + reiniciar -->
+    <div class="controls-row">
+      <button class="speak-on-click" id="circle-btn">Círculo</button>
+      <button class="speak-on-click" id="triangle-btn">Triángulo</button>
+      <button class="speak-on-click" id="line-btn">Línea</button>
+      <button class="speak-on-click" id="rectangle-btn">Rectángulo</button>
+      <button class="speak-on-click" id="pentagon-btn">Pentágono</button>
+      <button class="speak-on-click" id="hexagon-btn">Hexágono</button>
+      <label>Tamaño: <input type="number" id="font-size" value="20" min="5" max="100"></label>
+      <button class="speak-on-click" id="reset-canvas">Borrar</button>
+      <button class="speak-on-click" id="reset-whole-game">Reiniciar juego</button>
+    </div>
+
+    <!-- Área canvas + panel derecho -->
+    <div id="canvas-area">
+      <canvas id="canvas" width="600" height="400"></canvas>
+
+      <div>
+        <table id="score-table">
+          <thead>
+            <tr><th>Equipo</th><th>Puntos</th></tr>
+          </thead>
+          <tbody>
+            <tr><td contenteditable="true">Equipo 1</td><td contenteditable="true">0</td></tr>
+            <tr><td contenteditable="true">Equipo 2</td><td contenteditable="true">0</td></tr>
+            <tr><td contenteditable="true">Equipo 3</td><td contenteditable="true">0</td></tr>
+            <tr><td contenteditable="true">Equipo 4</td><td contenteditable="true">0</td></tr>
+            <tr><td contenteditable="true">Equipo 5</td><td contenteditable="true">0</td></tr>
+            <tr><td contenteditable="true">Equipo 6</td><td contenteditable="true">0</td></tr>
+            <tr><td contenteditable="true">Equipo 7</td><td contenteditable="true">0</td></tr>
+            <tr><td contenteditable="true">Equipo 8</td><td contenteditable="true">0</td></tr>
+          </tbody>
+        </table>
+
+        <div class="csv-input-area">
+          <label for="csv-input">Lista CSV:</label>
+          <input type="text" id="csv-input" placeholder="perro,banana,gato">
+          <button class="speak-on-click" id="submit-csv">Enviar</button>
+
+          <label for="color-picker" class="color-label">Color:</label>
+          <input type="color" id="color-picker" value="#000000">
+
+          <label for="pen-thickness" class="thickness-label">Grosor:</label>
+          <input type="range" id="pen-thickness" min="1" max="10" value="2">
+        </div>
+      </div>
+    </div>
+
+    <!-- Instrucciones -->
+    <div style="margin-top: 12px; font-size: 14px; max-width: 600px;">
+      <strong>Instrucciones:</strong><br>
+      Usa los botones para dibujar formas o dibuja libremente con el ratón.
+      Haz doble clic sobre una forma para borrarla.
+      Usa el temporizador para limitar los turnos. Haz clic en "Nueva palabra" para sacar una palabra.
+      También puedes pegar tu propia lista de palabras en el campo CSV.
+      Escoge el color y el grosor del lápiz a continuación.
+    </div>
+<script>
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  let drawing = false;
+  let shapes = [];
+  let selectedShape = null;
+  let freehandDrawing = false;
+  let currentColor = "#000000";
+  let currentThickness = 2;
+
+  const colorPicker = document.getElementById("color-picker");
+  const thicknessSlider = document.getElementById("pen-thickness");
+
+  colorPicker.addEventListener("input", () => {
+    currentColor = colorPicker.value;
+  });
+
+  thicknessSlider.addEventListener("input", () => {
+    currentThickness = parseInt(thicknessSlider.value);
+  });
+
+  canvas.addEventListener('mousedown', (e) => handleMouseDown(e));
+  canvas.addEventListener('mouseup', () => handleMouseUp());
+  canvas.addEventListener('mousemove', (e) => handleMouseMove(e));
+  canvas.addEventListener('dblclick', (e) => eraseShape(e));
+
+  canvas.addEventListener('mousedown', () => freehandDrawing = true);
+  canvas.addEventListener('mouseup', () => {
+    freehandDrawing = false;
+    ctx.beginPath();
+  });
+  canvas.addEventListener('mousemove', (e) => {
+    if (freehandDrawing) draw(e);
+  });
+
+  function draw(e) {
+    if (!freehandDrawing) return;
+    ctx.lineWidth = currentThickness;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = currentColor;
+    ctx.lineTo(e.clientX - canvas.offsetLeft, e.clientY - canvas.offsetTop);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(e.clientX - canvas.offsetLeft, e.clientY - canvas.offsetTop);
+  }
+
+  function handleMouseDown(e) {
+    const [x, y] = getMousePos(e);
+    selectedShape = getShapeAtPosition(x, y);
+    drawing = true;
+  }
+
+  function handleMouseUp() {
+    drawing = false;
+    selectedShape = null;
+  }
+
+  function handleMouseMove(e) {
+    if (!drawing || !selectedShape) return;
+    const [x, y] = getMousePos(e);
+    selectedShape.x = x;
+    selectedShape.y = y;
+    drawCanvas();
+  }
+
+  function getMousePos(e) {
+    return [e.clientX - canvas.offsetLeft, e.clientY - canvas.offsetTop];
+  }
+
+  function getShapeAtPosition(x, y) {
+    return shapes.find(shape => shape.isInside(x, y));
+  }
+
+  function drawCanvas() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    shapes.forEach(shape => shape.draw());
+  }
+
+  function eraseShape(e) {
+    const [x, y] = getMousePos(e);
+    const index = shapes.findIndex(shape => shape.isInside(x, y));
+    if (index !== -1) {
+      shapes.splice(index, 1);
+      drawCanvas();
+    }
+  }
+
+  class Shape {
+    constructor(x, y, size, color) {
+      this.x = x;
+      this.y = y;
+      this.size = size;
+      this.color = color;
+    }
+    draw() {}
+    isInside() { return false; }
+  }
+
+  class Circle extends Shape {
+    draw() {
+      ctx.beginPath();
+      ctx.strokeStyle = this.color;
+      ctx.lineWidth = currentThickness;
+      ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    isInside(x, y) {
+      return Math.hypot(this.x - x, this.y - y) <= this.size;
+    }
+  }
+
+  class Triangle extends Shape {
+    draw() {
+      ctx.beginPath();
+      ctx.strokeStyle = this.color;
+      ctx.lineWidth = currentThickness;
+      ctx.moveTo(this.x, this.y - this.size);
+      ctx.lineTo(this.x - this.size, this.y + this.size);
+      ctx.lineTo(this.x + this.size, this.y + this.size);
+      ctx.closePath();
+      ctx.stroke();
+    }
+    isInside(x, y) {
+      return x > this.x - this.size && x < this.x + this.size &&
+             y > this.y - this.size && y < this.y + this.size;
+    }
+  }
+
+  class Line extends Shape {
+    draw() {
+      ctx.beginPath();
+      ctx.strokeStyle = this.color;
+      ctx.lineWidth = currentThickness;
+      ctx.moveTo(this.x - this.size, this.y);
+      ctx.lineTo(this.x + this.size, this.y);
+      ctx.stroke();
+    }
+    isInside(x, y) {
+      return x >= this.x - this.size && x <= this.x + this.size &&
+             y >= this.y - 5 && y <= this.y + 5;
+    }
+  }
+
+  class Rectangle extends Shape {
+    draw() {
+      ctx.strokeStyle = this.color;
+      ctx.lineWidth = currentThickness;
+      ctx.strokeRect(this.x - this.size, this.y - this.size, this.size * 2, this.size * 1.5);
+    }
+    isInside(x, y) {
+      return x >= this.x - this.size && x <= this.x + this.size &&
+             y >= this.y - this.size && y <= this.y + this.size * 1.5;
+    }
+  }
+
+  class Pentagon extends Shape {
+    draw() {
+      const angle = Math.PI * 2 / 5;
+      ctx.beginPath();
+      ctx.strokeStyle = this.color;
+      ctx.lineWidth = currentThickness;
+      for (let i = 0; i < 5; i++) {
+        const x = this.x + this.size * Math.cos(angle * i - Math.PI / 2);
+        const y = this.y + this.size * Math.sin(angle * i - Math.PI / 2);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.stroke();
+    }
+    isInside(x, y) {
+      return Math.hypot(this.x - x, this.y - y) <= this.size;
+    }
+  }
+
+  class Hexagon extends Shape {
+    draw() {
+      const angle = Math.PI / 3;
+      ctx.beginPath();
+      ctx.strokeStyle = this.color;
+      ctx.lineWidth = currentThickness;
+      for (let i = 0; i < 6; i++) {
+        const x = this.x + this.size * Math.cos(angle * i);
+        const y = this.y + this.size * Math.sin(angle * i);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.stroke();
+    }
+    isInside(x, y) {
+      return Math.hypot(this.x - x, this.y - y) <= this.size;
+    }
+  }
+
+  function addShape(ShapeType) {
+    const size = parseInt(document.getElementById('font-size').value);
+    const x = canvas.width / 2;
+    const y = canvas.height / 2;
+    const shape = new ShapeType(x, y, size, currentColor);
+    shapes.push(shape);
+    drawCanvas();
+  }
+
+  document.querySelectorAll('.speak-on-click').forEach(btn => {
+    btn.addEventListener('click', () => {
+      speak(btn.innerText);
+    });
+  });
+
+  function speak(text) {
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang = 'es-ES';
+    speechSynthesis.cancel();
+    setTimeout(() => speechSynthesis.speak(utter), 100);
+  }
+
+  document.getElementById('circle-btn').addEventListener('click', () => addShape(Circle));
+  document.getElementById('triangle-btn').addEventListener('click', () => addShape(Triangle));
+  document.getElementById('line-btn').addEventListener('click', () => addShape(Line));
+  document.getElementById('rectangle-btn').addEventListener('click', () => addShape(Rectangle));
+  document.getElementById('pentagon-btn').addEventListener('click', () => addShape(Pentagon));
+  document.getElementById('hexagon-btn').addEventListener('click', () => addShape(Hexagon));
+
+  document.getElementById('reset-canvas').addEventListener('click', () => {
+    shapes = [];
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  });
+</script>
+<script>
+  let timer;
+  let timeLeft = 60;
+
+  document.getElementById('start-timer').addEventListener('click', () => {
+    clearInterval(timer);
+    timeLeft = parseInt(document.getElementById('timer').value) || 60;
+    document.getElementById('timer').value = timeLeft;
+    timer = setInterval(() => {
+      if (timeLeft > 0) {
+        timeLeft--;
+        document.getElementById('timer').value = timeLeft;
+      } else {
+        clearInterval(timer);
+        alert("¡Tiempo terminado!");
+      }
+    }, 1000);
+  });
+
+  document.getElementById('reset-timer').addEventListener('click', () => {
+    clearInterval(timer);
+    document.getElementById('timer').value = 60;
+  });
+
+  const deck = [
+    "Manzana", "Casa", "Perro", "Gato", "Coche", "Árbol", "Sol", "Luna", "Estrella", "Pez",
+    "Pájaro", "Computadora", "Teléfono", "Guitarra", "Pastel", "Sombrero", "Zapato", "Silla", "Barco", "Avión",
+    "Montaña", "Río", "Nube", "Libro", "Flor", "Pelota", "Robot", "Llave", "Reloj", "Mapa",
+    "Serpiente", "Bicicleta", "Puente", "Elefante", "León", "Tigre", "Araña", "Gusano", "Taza", "Lápiz",
+    "Corazón", "Cámara", "Lámpara", "Bandera", "Ventana", "Puerta", "Mano", "Pie", "Paraguas", "Cohete"
+  ];
+
+  let currentCardIndex = -1;
+
+  function speakWord(word) {
+    const utter = new SpeechSynthesisUtterance(word);
+    utter.lang = "es-ES";
+    speechSynthesis.cancel();
+    setTimeout(() => speechSynthesis.speak(utter), 100);
+  }
+
+  document.getElementById('new-card-btn').addEventListener('click', () => {
+    currentCardIndex = Math.floor(Math.random() * deck.length);
+    const word = deck[currentCardIndex];
+    document.getElementById('card-display').innerText = word;
+    speakWord(word);
+  });
+
+  document.getElementById('discard-card-btn').addEventListener('click', () => {
+    document.getElementById('card-display').innerText = "¡Siguiente palabra!";
+    currentCardIndex = -1;
+  });
+
+  document.getElementById('reset-whole-game').addEventListener('click', () => {
+    shapes = [];
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    clearInterval(timer);
+    document.getElementById('timer').value = 60;
+    currentCardIndex = -1;
+    document.getElementById('card-display').innerText = "_ _ _";
+    document.querySelectorAll("#score-table tbody tr").forEach(row => {
+      row.cells[1].innerText = "0";
+    });
+  });
+
+  document.getElementById('submit-csv').addEventListener('click', () => {
+    const inputField = document.getElementById('csv-input');
+    const input = inputField.value.trim();
+    if (input) {
+      const newDeck = input.split(',').map(word => word.trim()).filter(word => word);
+      if (newDeck.length > 0) {
+        deck.length = 0;
+        deck.push(...newDeck);
+        document.getElementById('card-display').innerText = "_ _ _";
+        inputField.value = "";
+        speak("Lista actualizada");
+      } else {
+        alert("La lista CSV debe contener al menos una palabra válida.");
+      }
+    } else {
+      alert("Por favor ingresa una lista separada por comas.");
+    }
+  });
+</script>
+</body>
+</html>

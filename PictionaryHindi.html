@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>चित्र अनुमान खेल</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 10px;
+      font-family: Arial, sans-serif;
+      background-color: #f9f9f9;
+    }
+
+    .game-wrapper {
+      width: 900px;
+      margin: 0 auto;
+    }
+
+    .controls-row {
+      display: flex;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .controls-row button,
+    .controls-row input {
+      font-size: 14px;
+      padding: 5px 8px;
+    }
+
+    .controls-row input[type="number"] {
+      width: 45px;
+      text-align: center;
+    }
+
+    #card-display {
+      font-weight: bold;
+      font-size: 18px;
+      min-width: 80px;
+      text-align: center;
+    }
+
+    #canvas-area {
+      display: flex;
+      gap: 20px;
+    }
+
+    canvas {
+      border: 1px solid black;
+      background-color: white;
+    }
+
+    #score-table {
+      border-collapse: collapse;
+      background-color: #eef;
+      font-size: 14px;
+      width: 200px;
+      margin-bottom: 10px;
+    }
+
+    #score-table th, #score-table td {
+      border: 1px solid #99c;
+      padding: 5px 8px;
+      text-align: center;
+    }
+
+    #score-table th {
+      background-color: #cce;
+    }
+
+    .csv-input-area {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      width: 185px;
+    }
+
+    .csv-input-area input[type="text"],
+    .csv-input-area input[type="color"],
+    .csv-input-area input[type="range"] {
+      width: 100%;
+      padding: 5px;
+      font-size: 14px;
+    }
+
+    .csv-input-area button {
+      width: 80px;
+    }
+
+    .color-label, .thickness-label {
+      font-size: 14px;
+      margin-top: 5px;
+    }
+  </style>
+</head>
+<body>
+  <div class="game-wrapper">
+    <!-- पंक्ति 1: शीर्षक + शब्द + टाइमर -->
+    <div class="controls-row">
+      <strong id="title">चित्र अनुमान खेल</strong>
+      <button class="speak-on-click" id="new-card-btn">नया शब्द</button>
+      <span>चित्र बनाएं:</span>
+      <span id="card-display">_ _ _</span>
+      <button class="speak-on-click" id="discard-card-btn">छोड़ें</button>
+      <button class="speak-on-click" id="start-timer">शुरू करें</button>
+      <input type="number" id="timer" value="60" min="1"> सेकंड
+      <button class="speak-on-click" id="reset-timer">रीसेट करें</button>
+    </div>
+
+    <!-- पंक्ति 2: आकृतियाँ + साफ़ करें + खेल रीसेट -->
+    <div class="controls-row">
+      <button class="speak-on-click" id="circle-btn">वृत्त</button>
+      <button class="speak-on-click" id="triangle-btn">त्रिभुज</button>
+      <button class="speak-on-click" id="line-btn">रेखा</button>
+      <button class="speak-on-click" id="rectangle-btn">आयत</button>
+      <button class="speak-on-click" id="pentagon-btn">पंचभुज</button>
+      <button class="speak-on-click" id="hexagon-btn">षट्भुज</button>
+      <label>आकार: <input type="number" id="font-size" value="20" min="5" max="100"></label>
+      <button class="speak-on-click" id="reset-canvas">साफ़ करें</button>
+      <button class="speak-on-click" id="reset-whole-game">खेल रीसेट करें</button>
+    </div>
+
+    <!-- कैनवास और दाईं ओर का पैनल -->
+    <div id="canvas-area">
+      <canvas id="canvas" width="600" height="400"></canvas>
+
+      <div>
+        <table id="score-table">
+          <thead>
+            <tr><th>टीम</th><th>अंक</th></tr>
+          </thead>
+          <tbody>
+            <tr><td contenteditable="true">टीम 1</td><td contenteditable="true">0</td></tr>
+            <tr><td contenteditable="true">टीम 2</td><td contenteditable="true">0</td></tr>
+            <tr><td contenteditable="true">टीम 3</td><td contenteditable="true">0</td></tr>
+            <tr><td contenteditable="true">टीम 4</td><td contenteditable="true">0</td></tr>
+            <tr><td contenteditable="true">टीम 5</td><td contenteditable="true">0</td></tr>
+            <tr><td contenteditable="true">टीम 6</td><td contenteditable="true">0</td></tr>
+            <tr><td contenteditable="true">टीम 7</td><td contenteditable="true">0</td></tr>
+            <tr><td contenteditable="true">टीम 8</td><td contenteditable="true">0</td></tr>
+          </tbody>
+        </table>
+
+        <div class="csv-input-area">
+          <label for="csv-input">CSV सूची:</label>
+          <input type="text" id="csv-input" placeholder="कुत्ता,केला,बिल्ली">
+          <button class="speak-on-click" id="submit-csv">जमा करें</button>
+
+          <label for="color-picker" class="color-label">रंग:</label>
+          <input type="color" id="color-picker" value="#000000">
+
+          <label for="pen-thickness" class="thickness-label">मोटाई:</label>
+          <input type="range" id="pen-thickness" min="1" max="10" value="2">
+        </div>
+      </div>
+    </div>
+
+    <!-- निर्देश -->
+    <div style="margin-top: 12px; font-size: 14px; max-width: 600px;">
+      <strong>निर्देश:</strong><br>
+      आकृति बनाने के लिए बटन का उपयोग करें या माउस से स्वतंत्र रूप से चित्र बनाएं।
+      किसी आकृति को हटाने के लिए उस पर डबल क्लिक करें।
+      हर खिलाड़ी के लिए समय सीमा निर्धारित करने के लिए टाइमर का उपयोग करें।
+      "नया शब्द" बटन पर क्लिक करें और कोई नया शब्द प्राप्त करें।
+      आप अपने शब्दों की सूची भी CSV क्षेत्र में डाल सकते हैं।
+      नीचे से रंग और मोटाई का चयन करें।
+    </div>
+<script>
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  let drawing = false;
+  let shapes = [];
+  let selectedShape = null;
+  let freehandDrawing = false;
+  let currentColor = "#000000";
+  let currentThickness = 2;
+
+  const colorPicker = document.getElementById("color-picker");
+  const thicknessSlider = document.getElementById("pen-thickness");
+
+  colorPicker.addEventListener("input", () => {
+    currentColor = colorPicker.value;
+  });
+
+  thicknessSlider.addEventListener("input", () => {
+    currentThickness = parseInt(thicknessSlider.value);
+  });
+
+  canvas.addEventListener('mousedown', (e) => handleMouseDown(e));
+  canvas.addEventListener('mouseup', () => handleMouseUp());
+  canvas.addEventListener('mousemove', (e) => handleMouseMove(e));
+  canvas.addEventListener('dblclick', (e) => eraseShape(e));
+
+  canvas.addEventListener('mousedown', () => freehandDrawing = true);
+  canvas.addEventListener('mouseup', () => {
+    freehandDrawing = false;
+    ctx.beginPath();
+  });
+  canvas.addEventListener('mousemove', (e) => {
+    if (freehandDrawing) draw(e);
+  });
+
+  function draw(e) {
+    if (!freehandDrawing) return;
+    ctx.lineWidth = currentThickness;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = currentColor;
+    ctx.lineTo(e.clientX - canvas.offsetLeft, e.clientY - canvas.offsetTop);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(e.clientX - canvas.offsetLeft, e.clientY - canvas.offsetTop);
+  }
+
+  function handleMouseDown(e) {
+    const [x, y] = getMousePos(e);
+    selectedShape = getShapeAtPosition(x, y);
+    drawing = true;
+  }
+
+  function handleMouseUp() {
+    drawing = false;
+    selectedShape = null;
+  }
+
+  function handleMouseMove(e) {
+    if (!drawing || !selectedShape) return;
+    const [x, y] = getMousePos(e);
+    selectedShape.x = x;
+    selectedShape.y = y;
+    drawCanvas();
+  }
+
+  function getMousePos(e) {
+    return [e.clientX - canvas.offsetLeft, e.clientY - canvas.offsetTop];
+  }
+
+  function getShapeAtPosition(x, y) {
+    return shapes.find(shape => shape.isInside(x, y));
+  }
+
+  function drawCanvas() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    shapes.forEach(shape => shape.draw());
+  }
+
+  function eraseShape(e) {
+    const [x, y] = getMousePos(e);
+    const index = shapes.findIndex(shape => shape.isInside(x, y));
+    if (index !== -1) {
+      shapes.splice(index, 1);
+      drawCanvas();
+    }
+  }
+
+  class Shape {
+    constructor(x, y, size, color) {
+      this.x = x;
+      this.y = y;
+      this.size = size;
+      this.color = color;
+    }
+    draw() {}
+    isInside() { return false; }
+  }
+
+  class Circle extends Shape {
+    draw() {
+      ctx.beginPath();
+      ctx.strokeStyle = this.color;
+      ctx.lineWidth = currentThickness;
+      ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    isInside(x, y) {
+      return Math.hypot(this.x - x, this.y - y) <= this.size;
+    }
+  }
+
+  class Triangle extends Shape {
+    draw() {
+      ctx.beginPath();
+      ctx.strokeStyle = this.color;
+      ctx.lineWidth = currentThickness;
+      ctx.moveTo(this.x, this.y - this.size);
+      ctx.lineTo(this.x - this.size, this.y + this.size);
+      ctx.lineTo(this.x + this.size, this.y + this.size);
+      ctx.closePath();
+      ctx.stroke();
+    }
+    isInside(x, y) {
+      return x > this.x - this.size && x < this.x + this.size &&
+             y > this.y - this.size && y < this.y + this.size;
+    }
+  }
+
+  class Line extends Shape {
+    draw() {
+      ctx.beginPath();
+      ctx.strokeStyle = this.color;
+      ctx.lineWidth = currentThickness;
+      ctx.moveTo(this.x - this.size, this.y);
+      ctx.lineTo(this.x + this.size, this.y);
+      ctx.stroke();
+    }
+    isInside(x, y) {
+      return x >= this.x - this.size && x <= this.x + this.size &&
+             y >= this.y - 5 && y <= this.y + 5;
+    }
+  }
+
+  class Rectangle extends Shape {
+    draw() {
+      ctx.strokeStyle = this.color;
+      ctx.lineWidth = currentThickness;
+      ctx.strokeRect(this.x - this.size, this.y - this.size, this.size * 2, this.size * 1.5);
+    }
+    isInside(x, y) {
+      return x >= this.x - this.size && x <= this.x + this.size &&
+             y >= this.y - this.size && y <= this.y + this.size * 1.5;
+    }
+  }
+
+  class Pentagon extends Shape {
+    draw() {
+      const angle = Math.PI * 2 / 5;
+      ctx.beginPath();
+      ctx.strokeStyle = this.color;
+      ctx.lineWidth = currentThickness;
+      for (let i = 0; i < 5; i++) {
+        const x = this.x + this.size * Math.cos(angle * i - Math.PI / 2);
+        const y = this.y + this.size * Math.sin(angle * i - Math.PI / 2);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.stroke();
+    }
+    isInside(x, y) {
+      return Math.hypot(this.x - x, this.y - y) <= this.size;
+    }
+  }
+
+  class Hexagon extends Shape {
+    draw() {
+      const angle = Math.PI / 3;
+      ctx.beginPath();
+      ctx.strokeStyle = this.color;
+      ctx.lineWidth = currentThickness;
+      for (let i = 0; i < 6; i++) {
+        const x = this.x + this.size * Math.cos(angle * i);
+        const y = this.y + this.size * Math.sin(angle * i);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.stroke();
+    }
+    isInside(x, y) {
+      return Math.hypot(this.x - x, this.y - y) <= this.size;
+    }
+  }
+
+  function addShape(ShapeType) {
+    const size = parseInt(document.getElementById('font-size').value);
+    const x = canvas.width / 2;
+    const y = canvas.height / 2;
+    const shape = new ShapeType(x, y, size, currentColor);
+    shapes.push(shape);
+    drawCanvas();
+  }
+
+  document.querySelectorAll('.speak-on-click').forEach(btn => {
+    btn.addEventListener('click', () => {
+      speak(btn.innerText);
+    });
+  });
+
+  function speak(text) {
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang = 'hi-IN';
+    speechSynthesis.cancel();
+    setTimeout(() => speechSynthesis.speak(utter), 100);
+  }
+
+  document.getElementById('circle-btn').addEventListener('click', () => addShape(Circle));
+  document.getElementById('triangle-btn').addEventListener('click', () => addShape(Triangle));
+  document.getElementById('line-btn').addEventListener('click', () => addShape(Line));
+  document.getElementById('rectangle-btn').addEventListener('click', () => addShape(Rectangle));
+  document.getElementById('pentagon-btn').addEventListener('click', () => addShape(Pentagon));
+  document.getElementById('hexagon-btn').addEventListener('click', () => addShape(Hexagon));
+
+  document.getElementById('reset-canvas').addEventListener('click', () => {
+    shapes = [];
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  });
+</script>
+<script>
+  let timer;
+  let timeLeft = 60;
+
+  document.getElementById('start-timer').addEventListener('click', () => {
+    clearInterval(timer);
+    timeLeft = parseInt(document.getElementById('timer').value) || 60;
+    document.getElementById('timer').value = timeLeft;
+    timer = setInterval(() => {
+      if (timeLeft > 0) {
+        timeLeft--;
+        document.getElementById('timer').value = timeLeft;
+      } else {
+        clearInterval(timer);
+        alert("समय समाप्त!");
+      }
+    }, 1000);
+  });
+
+  document.getElementById('reset-timer').addEventListener('click', () => {
+    clearInterval(timer);
+    document.getElementById('timer').value = 60;
+  });
+
+  const deck = [
+    "सेब", "घर", "कुत्ता", "बिल्ली", "गाड़ी", "पेड़", "सूरज", "चाँद", "तारा", "मछली",
+    "पक्षी", "कंप्यूटर", "फोन", "गिटार", "केक", "टोपी", "जूता", "कुर्सी", "नाव", "हवाई जहाज",
+    "पहाड़", "नदी", "बादल", "किताब", "फूल", "गेंद", "रोबोट", "चाबी", "घड़ी", "नक्शा",
+    "साँप", "साइकिल", "पुल", "हाथी", "सिंह", "बाघ", "मकड़ी", "कीड़ा", "कप", "पेंसिल",
+    "दिल", "कैमरा", "लैंप", "झंडा", "खिड़की", "दरवाज़ा", "हाथ", "पैर", "छाता", "रॉकेट"
+  ];
+
+  let currentCardIndex = -1;
+
+  function speakWord(word) {
+    const utter = new SpeechSynthesisUtterance(word);
+    utter.lang = "hi-IN";
+    speechSynthesis.cancel();
+    setTimeout(() => speechSynthesis.speak(utter), 100);
+  }
+
+  document.getElementById('new-card-btn').addEventListener('click', () => {
+    currentCardIndex = Math.floor(Math.random() * deck.length);
+    const word = deck[currentCardIndex];
+    document.getElementById('card-display').innerText = word;
+    speakWord(word);
+  });
+
+  document.getElementById('discard-card-btn').addEventListener('click', () => {
+    document.getElementById('card-display').innerText = "अगला शब्द!";
+    currentCardIndex = -1;
+  });
+
+  document.getElementById('reset-whole-game').addEventListener('click', () => {
+    shapes = [];
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    clearInterval(timer);
+    document.getElementById('timer').value = 60;
+    currentCardIndex = -1;
+    document.getElementById('card-display').innerText = "_ _ _";
+    document.querySelectorAll("#score-table tbody tr").forEach(row => {
+      row.cells[1].innerText = "0";
+    });
+  });
+
+  document.getElementById('submit-csv').addEventListener('click', () => {
+    const inputField = document.getElementById('csv-input');
+    const input = inputField.value.trim();
+    if (input) {
+      const newDeck = input.split(',').map(word => word.trim()).filter(word => word);
+      if (newDeck.length > 0) {
+        deck.length = 0;
+        deck.push(...newDeck);
+        document.getElementById('card-display').innerText = "_ _ _";
+        inputField.value = "";
+        speak("सूची अपडेट की गई");
+      } else {
+        alert("CSV सूची में कम से कम एक मान्य शब्द होना चाहिए।");
+      }
+    } else {
+      alert("कृपया कॉमा से अलग किए गए शब्दों की सूची दर्ज करें।");
+    }
+  });
+</script>
+</body>
+</html>
